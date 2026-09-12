@@ -1,0 +1,19 @@
+services:
+
+  frontend:
+    build:
+      context: ./DrugGuard
+      dockerfile: Dockerfile
+    container_name: Nexora-frontend
+    ports:
+      - "8000:80"
+    depends_on:
+      - backend
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: Nexora-backend
+    ports:
+      - "5000:5000"
