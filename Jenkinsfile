@@ -163,7 +163,7 @@ pipeline {
                 sh """
                     docker run -d \
                     --name Nexora-frontend \
-                    -p 8080:80 \
+                    -p 8081:80 \
                     ${FRONTEND_IMAGE}:${IMAGE_TAG}
                 """
             }
