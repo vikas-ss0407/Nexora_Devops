@@ -200,7 +200,7 @@ pipeline {
             echo '=============================================='
             echo 'NEXORA DEPLOYMENT SUCCESSFUL'
             echo '=============================================='
-            echo 'Frontend: http://localhost:8080'
+            echo 'Frontend: http://localhost:8081'
             echo 'Backend : http://localhost:5000'
             echo '=============================================='
         }
