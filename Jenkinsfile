@@ -40,8 +40,8 @@ pipeline {
                         variable: 'FRONTEND_ENV'
                     )
                 ]) {
-                    bat '''
-                        copy /Y "%FRONTEND_ENV%" "DrugGuard\\.env"
+                    sh '''
+                        cp "$FRONTEND_ENV" "DrugGuard/.env"
                     '''
                 }
             }
@@ -53,10 +53,10 @@ pipeline {
         // =========================================================
         stage('Build Frontend Image') {
             steps {
-                bat """
-                    docker build ^
-                    -t %FRONTEND_IMAGE%:%IMAGE_TAG% ^
-                    -t %FRONTEND_IMAGE%:latest ^
+                sh """
+                    docker build \
+                    -t ${FRONTEND_IMAGE}:${IMAGE_TAG} \
+                    -t ${FRONTEND_IMAGE}:latest \
                     ./DrugGuard
                 """
             }
@@ -68,10 +68,10 @@ pipeline {
         // =========================================================
         stage('Build Backend Image') {
             steps {
-                bat """
-                    docker build ^
-                    -t %BACKEND_IMAGE%:%IMAGE_TAG% ^
-                    -t %BACKEND_IMAGE%:latest ^
+                sh """
+                    docker build \
+                    -t ${BACKEND_IMAGE}:${IMAGE_TAG} \
+                    -t ${BACKEND_IMAGE}:latest \
                     ./backend
                 """
             }
@@ -90,9 +90,9 @@ pipeline {
                         passwordVariable: 'DOCKER_PASSWORD'
                     )
                 ]) {
-                    bat '''
-                        echo %DOCKER_PASSWORD% | docker login ^
-                        -u %DOCKER_USERNAME% ^
+                    sh '''
+                        echo "$DOCKER_PASSWORD" | docker login \
+                        -u "$DOCKER_USERNAME" \
                         --password-stdin
                     '''
                 }
@@ -105,12 +105,12 @@ pipeline {
         // =========================================================
         stage('Push Images to Docker Hub') {
             steps {
-                bat """
-                    docker push %FRONTEND_IMAGE%:%IMAGE_TAG%
-                    docker push %FRONTEND_IMAGE%:latest
+                sh """
+                    docker push ${FRONTEND_IMAGE}:${IMAGE_TAG}
+                    docker push ${FRONTEND_IMAGE}:latest
 
-                    docker push %BACKEND_IMAGE%:%IMAGE_TAG%
-                    docker push %BACKEND_IMAGE%:latest
+                    docker push ${BACKEND_IMAGE}:${IMAGE_TAG}
+                    docker push ${BACKEND_IMAGE}:latest
                 """
             }
         }
@@ -121,12 +121,12 @@ pipeline {
         // =========================================================
         stage('Stop Existing Containers') {
             steps {
-                bat '''
-                    docker stop Nexora-frontend 2>NUL || exit /B 0
-                    docker stop Nexora-backend 2>NUL || exit /B 0
+                sh '''
+                    docker stop Nexora-frontend 2>/dev/null || true
+                    docker stop Nexora-backend 2>/dev/null || true
 
-                    docker rm Nexora-frontend 2>NUL || exit /B 0
-                    docker rm Nexora-backend 2>NUL || exit /B 0
+                    docker rm Nexora-frontend 2>/dev/null || true
+                    docker rm Nexora-backend 2>/dev/null || true
                 '''
             }
         }
@@ -143,12 +143,12 @@ pipeline {
                         variable: 'BACKEND_ENV'
                     )
                 ]) {
-                    bat """
-                        docker run -d ^
-                        --name Nexora-backend ^
-                        --env-file "%BACKEND_ENV%" ^
-                        -p 5000:5000 ^
-                        %BACKEND_IMAGE%:%IMAGE_TAG%
+                    sh """
+                        docker run -d \
+                        --name Nexora-backend \
+                        --env-file "$BACKEND_ENV" \
+                        -p 5000:5000 \
+                        ${BACKEND_IMAGE}:${IMAGE_TAG}
                     """
                 }
             }
@@ -160,11 +160,11 @@ pipeline {
         // =========================================================
         stage('Run Frontend Container') {
             steps {
-                bat """
-                    docker run -d ^
-                    --name Nexora-frontend ^
-                    -p 8080:80 ^
-                    %FRONTEND_IMAGE%:%IMAGE_TAG%
+                sh """
+                    docker run -d \
+                    --name Nexora-frontend \
+                    -p 8080:80 \
+                    ${FRONTEND_IMAGE}:${IMAGE_TAG}
                 """
             }
         }
@@ -175,7 +175,7 @@ pipeline {
         // =========================================================
         stage('Verify Containers') {
             steps {
-                bat '''
+                sh '''
                     docker ps
                 '''
             }
@@ -189,10 +189,10 @@ pipeline {
     post {
 
         always {
-            bat '''
-                if exist "DrugGuard\\.env" (
-                    del /F /Q "DrugGuard\\.env"
-                )
+            sh '''
+                if [ -f "DrugGuard/.env" ]; then
+                    rm -f "DrugGuard/.env"
+                fi
             '''
         }
 
