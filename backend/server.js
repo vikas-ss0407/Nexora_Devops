@@ -36,10 +36,4 @@ app.use('/api/retailer', retailerRoutes)
 app.listen(PORT, async () => {
   console.log(`DrugGuard backend running on port ${PORT}`)
   
-  try {
-    await ensureManufacturerCatalogSeeded()
-    console.log('Manufacturer catalog seeded')
-  } catch (err) {
-    console.error('Error seeding catalog:', err.message)
-  }
 })
