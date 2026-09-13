@@ -167,24 +167,22 @@ pipeline {
         // =====================================================
 
         stage('Configure EKS') {
-
             steps {
-
-                withCredentials([
-                    [
-                        $class: 'AmazonWebServicesCredentialsBinding',
-                        credentialsId: 'AWS Credentials'
-                    ]
-                ]) {
-
+                withCredentials([[
+                    $class: 'AmazonWebServicesCredentialsBinding',
+                    credentialsId: 'aws-credentials'
+                ]]) {
                     sh '''
                         aws sts get-caller-identity
 
-                        aws eks update-kubeconfig \
-                        --region "$AWS_REGION" \
-                        --name "$EKS_CLUSTER"
+                        rm -f /var/jenkins_home/.kube/config
+                        mkdir -p /var/jenkins_home/.kube
 
-                        kubectl cluster-info
+                        aws eks update-kubeconfig \
+                            --region eu-north-1 \
+                            --name nexora-cluster
+
+                        kubectl get nodes
                     '''
                 }
             }
