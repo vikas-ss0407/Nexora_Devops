@@ -1,3 +1,4 @@
+```groovy
 pipeline {
     agent any
 
@@ -5,7 +6,6 @@ pipeline {
 
         AWS_REGION = 'eu-north-1'
 
-        // Replace with your AWS account ID
         AWS_ACCOUNT_ID = '670099380890'
 
         ECR_REGISTRY = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
@@ -164,23 +164,37 @@ pipeline {
 
         // =====================================================
         // 8. UPDATE KUBECTL CONFIGURATION
-        // ====================================================
+        // =====================================================
 
         stage('Configure EKS') {
+
             steps {
-                withCredentials([[
-                    $class: 'AmazonWebServicesCredentialsBinding',
-                    credentialsId: 'AWS Credentials'
-                ]]) {
+
+                withCredentials([
+                    [
+                        $class: 'AmazonWebServicesCredentialsBinding',
+                        credentialsId: 'AWS Credentials'
+                    ]
+                ]) {
+
                     sh '''
+                        echo "=============================================="
+                        echo "Configuring EKS"
+                        echo "=============================================="
+
                         aws sts get-caller-identity
 
                         rm -f /var/jenkins_home/.kube/config
+
                         mkdir -p /var/jenkins_home/.kube
 
                         aws eks update-kubeconfig \
-                            --region eu-north-1 \
-                            --name nexora-cluster
+                            --region "$AWS_REGION" \
+                            --name "$EKS_CLUSTER"
+
+                        echo "=============================================="
+                        echo "Checking EKS Nodes"
+                        echo "=============================================="
 
                         kubectl get nodes
                     '''
@@ -197,9 +211,20 @@ pipeline {
 
             steps {
 
-                sh '''
-                    kubectl apply -f kubernetes/namespace.yaml
-                '''
+                withCredentials([
+                    [
+                        $class: 'AmazonWebServicesCredentialsBinding',
+                        credentialsId: 'AWS Credentials'
+                    ]
+                ]) {
+
+                    sh '''
+                        echo "Creating Nexora namespace..."
+
+                        kubectl apply \
+                        -f kubernetes/namespace.yaml
+                    '''
+                }
             }
         }
 
@@ -213,6 +238,10 @@ pipeline {
             steps {
 
                 withCredentials([
+                    [
+                        $class: 'AmazonWebServicesCredentialsBinding',
+                        credentialsId: 'AWS Credentials'
+                    ],
                     file(
                         credentialsId: 'Nexora_backend',
                         variable: 'BACKEND_ENV'
@@ -220,6 +249,8 @@ pipeline {
                 ]) {
 
                     sh '''
+                        echo "Creating backend secret..."
+
                         kubectl create secret generic nexora-backend-secret \
                         --namespace=nexora \
                         --from-env-file="$BACKEND_ENV" \
@@ -240,15 +271,25 @@ pipeline {
 
             steps {
 
-                sh '''
-                    sed \
-                    "s|BACKEND_IMAGE_PLACEHOLDER|$BACKEND_ECR_REPO:$IMAGE_TAG|g" \
-                    kubernetes/backend-deployment.yaml \
-                    | kubectl apply -f -
+                withCredentials([
+                    [
+                        $class: 'AmazonWebServicesCredentialsBinding',
+                        credentialsId: 'AWS Credentials'
+                    ]
+                ]) {
 
-                    kubectl apply \
-                    -f kubernetes/backend-service.yaml
-                '''
+                    sh '''
+                        echo "Deploying backend..."
+
+                        sed \
+                        "s|BACKEND_IMAGE_PLACEHOLDER|$BACKEND_ECR_REPO:$IMAGE_TAG|g" \
+                        kubernetes/backend-deployment.yaml \
+                        | kubectl apply -f -
+
+                        kubectl apply \
+                        -f kubernetes/backend-service.yaml
+                    '''
+                }
             }
         }
 
@@ -261,15 +302,25 @@ pipeline {
 
             steps {
 
-                sh '''
-                    sed \
-                    "s|FRONTEND_IMAGE_PLACEHOLDER|$FRONTEND_ECR_REPO:$IMAGE_TAG|g" \
-                    kubernetes/frontend-deployment.yaml \
-                    | kubectl apply -f -
+                withCredentials([
+                    [
+                        $class: 'AmazonWebServicesCredentialsBinding',
+                        credentialsId: 'AWS Credentials'
+                    ]
+                ]) {
 
-                    kubectl apply \
-                    -f kubernetes/frontend-service.yaml
-                '''
+                    sh '''
+                        echo "Deploying frontend..."
+
+                        sed \
+                        "s|FRONTEND_IMAGE_PLACEHOLDER|$FRONTEND_ECR_REPO:$IMAGE_TAG|g" \
+                        kubernetes/frontend-deployment.yaml \
+                        | kubectl apply -f -
+
+                        kubectl apply \
+                        -f kubernetes/frontend-service.yaml
+                    '''
+                }
             }
         }
 
@@ -282,10 +333,20 @@ pipeline {
 
             steps {
 
-                sh '''
-                    kubectl apply \
-                    -f kubernetes/ingress.yaml
-                '''
+                withCredentials([
+                    [
+                        $class: 'AmazonWebServicesCredentialsBinding',
+                        credentialsId: 'AWS Credentials'
+                    ]
+                ]) {
+
+                    sh '''
+                        echo "Deploying ingress..."
+
+                        kubectl apply \
+                        -f kubernetes/ingress.yaml
+                    '''
+                }
             }
         }
 
@@ -298,17 +359,29 @@ pipeline {
 
             steps {
 
-                sh '''
-                    kubectl rollout status \
-                    deployment/nexora-backend \
-                    -n nexora \
-                    --timeout=180s
+                withCredentials([
+                    [
+                        $class: 'AmazonWebServicesCredentialsBinding',
+                        credentialsId: 'AWS Credentials'
+                    ]
+                ]) {
 
-                    kubectl rollout status \
-                    deployment/nexora-frontend \
-                    -n nexora \
-                    --timeout=180s
-                '''
+                    sh '''
+                        echo "Waiting for backend deployment..."
+
+                        kubectl rollout status \
+                        deployment/nexora-backend \
+                        -n nexora \
+                        --timeout=180s
+
+                        echo "Waiting for frontend deployment..."
+
+                        kubectl rollout status \
+                        deployment/nexora-frontend \
+                        -n nexora \
+                        --timeout=180s
+                    '''
+                }
             }
         }
 
@@ -321,28 +394,36 @@ pipeline {
 
             steps {
 
-                sh '''
-                    echo "================ PODS ================"
+                withCredentials([
+                    [
+                        $class: 'AmazonWebServicesCredentialsBinding',
+                        credentialsId: 'AWS Credentials'
+                    ]
+                ]) {
 
-                    kubectl get pods \
-                    -n nexora \
-                    -o wide
+                    sh '''
+                        echo "================ PODS ================"
 
-                    echo "================ SERVICES ================"
+                        kubectl get pods \
+                        -n nexora \
+                        -o wide
 
-                    kubectl get services \
-                    -n nexora
+                        echo "================ SERVICES ================"
 
-                    echo "================ DEPLOYMENTS ================"
+                        kubectl get services \
+                        -n nexora
 
-                    kubectl get deployments \
-                    -n nexora
+                        echo "================ DEPLOYMENTS ================"
 
-                    echo "================ INGRESS ================"
+                        kubectl get deployments \
+                        -n nexora
 
-                    kubectl get ingress \
-                    -n nexora
-                '''
+                        echo "================ INGRESS ================"
+
+                        kubectl get ingress \
+                        -n nexora
+                    '''
+                }
             }
         }
     }
