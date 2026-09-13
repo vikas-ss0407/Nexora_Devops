@@ -2,6 +2,27 @@ const admin = require('firebase-admin')
 const fs = require('fs')
 const path = require('path')
 
+function sanitizePrivateKey(key) {
+  if (!key) return null
+  let formatted = String(key).trim()
+
+  // Strip wrapping single or double quotes
+  if (
+    (formatted.startsWith('"') && formatted.endsWith('"')) ||
+    (formatted.startsWith("'") && formatted.endsWith("'"))
+  ) {
+    formatted = formatted.slice(1, -1)
+  }
+
+  // Replace literal '\n' sequences with real newlines
+  formatted = formatted.replace(/\\n/g, '\n')
+
+  // Remove any carriage returns
+  formatted = formatted.replace(/\r/g, '')
+
+  return formatted
+}
+
 function getServiceAccount() {
   // 1. Check if firebasesecurity.json or custom path exists with valid credentials
   const candidatePaths = [
@@ -21,7 +42,7 @@ function getServiceAccount() {
           return {
             projectId: parsed.project_id,
             clientEmail: parsed.client_email,
-            privateKey: parsed.private_key.replace(/\\n/g, '\n')
+            privateKey: sanitizePrivateKey(parsed.private_key)
           }
         }
       } catch (err) {
@@ -39,7 +60,7 @@ function getServiceAccount() {
     return {
       projectId,
       clientEmail,
-      privateKey: privateKey.replace(/\\n/g, '\n')
+      privateKey: sanitizePrivateKey(privateKey)
     }
   }
 
