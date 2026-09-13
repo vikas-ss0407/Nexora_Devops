@@ -170,7 +170,7 @@ pipeline {
             steps {
                 withCredentials([[
                     $class: 'AmazonWebServicesCredentialsBinding',
-                    credentialsId: 'aws-credentials'
+                    credentialsId: 'AWS Credentials'
                 ]]) {
                     sh '''
                         aws sts get-caller-identity
