@@ -6,7 +6,7 @@ services:
       dockerfile: Dockerfile
     container_name: Nexora-frontend
     ports:
-      - "8000:80"
+      - "8081:80"
     depends_on:
       - backend
 
@@ -17,3 +17,5 @@ services:
     container_name: Nexora-backend
     ports:
       - "5000:5000"
+    env_file:
+      - ./backend/.env

@@ -5,4 +5,3 @@ build
 .gitignore
 Dockerfile
 npm-debug.log
-.env
