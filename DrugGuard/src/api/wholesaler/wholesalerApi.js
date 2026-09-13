@@ -1,7 +1,7 @@
 import { apiRequest } from '../client'
 
 export async function loginWholesaler(username, password) {
-  const response = await apiRequest('/api/auth/custom-login', {
+  const response = await apiRequest('/auth/custom-login', {
     method: 'POST',
     body: JSON.stringify({ role: 'wholesaler', username, password })
   })
@@ -11,22 +11,22 @@ export async function loginWholesaler(username, password) {
 }
 
 export async function createWholesalerSale(payload) {
-  return apiRequest('/api/wholesaler/sales', {
+  return apiRequest('/wholesaler/sales', {
     method: 'POST',
     body: JSON.stringify(payload)
   })
 }
 
 export async function getWholesalerSellCatalog(wholesalerId) {
-  return apiRequest(`/api/wholesaler/${encodeURIComponent(wholesalerId)}/sell-catalog`)
+  return apiRequest(`/wholesaler/${encodeURIComponent(wholesalerId)}/sell-catalog`)
 }
 
 export async function getWholesalerSalesHistory(wholesalerId) {
-  return apiRequest(`/api/wholesaler/${encodeURIComponent(wholesalerId)}/sales-history`)
+  return apiRequest(`/wholesaler/${encodeURIComponent(wholesalerId)}/sales-history`)
 }
 
 export async function getWholesalerStock(wholesalerId) {
-  return apiRequest(`/api/wholesaler/${encodeURIComponent(wholesalerId)}/stock`)
+  return apiRequest(`/wholesaler/${encodeURIComponent(wholesalerId)}/stock`)
 }
 
 export async function getManufacturerMedicines(manufacturer) {
@@ -34,45 +34,45 @@ export async function getManufacturerMedicines(manufacturer) {
     ? `?manufacturer=${encodeURIComponent(manufacturer)}`
     : ''
 
-  return apiRequest(`/api/wholesaler/manufacturer-medicines${query}`)
+  return apiRequest(`/wholesaler/manufacturer-medicines${query}`)
 }
 
 export async function createWholesalerManufacturerPurchase(payload) {
-  return apiRequest('/api/wholesaler/manufacturer-purchases', {
+  return apiRequest('/wholesaler/manufacturer-purchases', {
     method: 'POST',
     body: JSON.stringify(payload)
   })
 }
 
 export async function getWholesalerApproveStockBills(wholesalerId) {
-  return apiRequest(`/api/wholesaler/${encodeURIComponent(wholesalerId)}/approve-stock`)
+  return apiRequest(`/wholesaler/${encodeURIComponent(wholesalerId)}/approve-stock`)
 }
 
 export async function approveWholesalerStock(wholesalerId, purchaseId, acceptedMedicineIds) {
-  return apiRequest(`/api/wholesaler/${encodeURIComponent(wholesalerId)}/approve-stock/${encodeURIComponent(purchaseId)}/approve`, {
+  return apiRequest(`/wholesaler/${encodeURIComponent(wholesalerId)}/approve-stock/${encodeURIComponent(purchaseId)}/approve`, {
     method: 'POST',
     body: JSON.stringify({ acceptedMedicineIds })
   })
 }
 
 export async function getWholesalerReturnRequests(wholesalerId) {
-  return apiRequest(`/api/wholesaler/${encodeURIComponent(wholesalerId)}/return-requests`)
+  return apiRequest(`/wholesaler/${encodeURIComponent(wholesalerId)}/return-requests`)
 }
 
 export async function createWholesalerReturnRequest(wholesalerId, payload) {
-  return apiRequest(`/api/wholesaler/${encodeURIComponent(wholesalerId)}/return-requests`, {
+  return apiRequest(`/wholesaler/${encodeURIComponent(wholesalerId)}/return-requests`, {
     method: 'POST',
     body: JSON.stringify(payload)
   })
 }
 
 export async function updateReturnRequestStatus(wholesalerId, requestId, status, refundAmount) {
-  return apiRequest(`/api/wholesaler/${encodeURIComponent(wholesalerId)}/return-requests/${encodeURIComponent(requestId)}/status`, {
+  return apiRequest(`/wholesaler/${encodeURIComponent(wholesalerId)}/return-requests/${encodeURIComponent(requestId)}/status`, {
     method: 'PUT',
     body: JSON.stringify({ status, refundAmount })
   })
 }
 
 export async function getWholesalerProfile(wholesalerId) {
-  return apiRequest(`/api/wholesaler/${encodeURIComponent(wholesalerId)}/profile`)
+  return apiRequest(`/wholesaler/${encodeURIComponent(wholesalerId)}/profile`)
 }

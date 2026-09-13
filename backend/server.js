@@ -29,9 +29,16 @@ app.get('/health', (_req, res) => {
 })
 
 app.use('/api/auth', authRoutes)
+app.use('/auth', authRoutes)
+
 app.use('/api/inspector', inspectorRoutes)
+app.use('/inspector', inspectorRoutes)
+
 app.use('/api/wholesaler', wholesalerRoutes)
+app.use('/wholesaler', wholesalerRoutes)
+
 app.use('/api/retailer', retailerRoutes)
+app.use('/retailer', retailerRoutes)
 app.get('/', (req, res) => {
   res.status(200).json({
     status: 'OK',

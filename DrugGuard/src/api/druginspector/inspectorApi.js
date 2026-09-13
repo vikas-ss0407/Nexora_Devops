@@ -37,7 +37,7 @@ export async function loginInspector(email, password) {
   }
 
   const user = result.user
-  const profile = await apiRequest(`/api/inspector/profile?email=${encodeURIComponent(user.email || '')}`)
+  const profile = await apiRequest(`/inspector/profile?email=${encodeURIComponent(user.email || '')}`)
 
   const session = {
     role: 'inspector',
@@ -51,20 +51,20 @@ export async function loginInspector(email, password) {
 }
 
 export async function createLicenseByInspector(payload) {
-  return apiRequest('/api/inspector/licenses', {
+  return apiRequest('/inspector/licenses', {
     method: 'POST',
     body: JSON.stringify(payload)
   })
 }
 
 export async function getInspectorVisibleRetailers(district) {
-  return apiRequest(`/api/inspector/districts/${encodeURIComponent(district)}/retailers-visible`)
+  return apiRequest(`/inspector/districts/${encodeURIComponent(district)}/retailers-visible`)
 }
 
 export async function getInspectorShops(district) {
-  return apiRequest(`/api/inspector/shops?district=${encodeURIComponent(district)}`)
+  return apiRequest(`/inspector/shops?district=${encodeURIComponent(district)}`)
 }
 
 export async function getInspectorDashboardSummary(district) {
-  return apiRequest(`/api/inspector/dashboard-summary?district=${encodeURIComponent(district)}`)
+  return apiRequest(`/inspector/dashboard-summary?district=${encodeURIComponent(district)}`)
 }
