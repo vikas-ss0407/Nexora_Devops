@@ -6,7 +6,7 @@ pipeline {
         AWS_REGION = 'eu-north-1'
 
         // Replace with your AWS account ID
-        AWS_ACCOUNT_ID = 'YOUR_ACCOUNT_ID'
+        AWS_ACCOUNT_ID = '670099380890'
 
         ECR_REGISTRY = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
 
@@ -16,7 +16,7 @@ pipeline {
         GIT_REPO   = 'https://github.com/vikas-ss0407/Nexora_Devops'
         GIT_BRANCH = 'main'
 
-        EKS_CLUSTER = 'YOUR_EKS_CLUSTER_NAME'
+        EKS_CLUSTER = 'nexora-cluster'
 
         IMAGE_TAG = "${BUILD_NUMBER}"
     }
