@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: nexora-frontend
+  namespace: nexora
+
+spec:
+  type: ClusterIP
+
+  selector:
+    app: nexora-frontend
+
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 80

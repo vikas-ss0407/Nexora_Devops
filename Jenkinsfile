@@ -2,22 +2,31 @@ pipeline {
     agent any
 
     environment {
-        DOCKERHUB_USER = 'vikasss0407'
 
-        FRONTEND_IMAGE = 'vikasss0407/nexora-frontend'
-        BACKEND_IMAGE  = 'vikasss0407/nexora-backend'
+        AWS_REGION = 'eu-north-1'
+
+        // Replace with your AWS account ID
+        AWS_ACCOUNT_ID = 'YOUR_ACCOUNT_ID'
+
+        ECR_REGISTRY = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
+
+        FRONTEND_ECR_REPO = "${ECR_REGISTRY}/nexora-frontend"
+        BACKEND_ECR_REPO  = "${ECR_REGISTRY}/nexora-backend"
 
         GIT_REPO   = 'https://github.com/vikas-ss0407/Nexora_Devops'
         GIT_BRANCH = 'main'
+
+        EKS_CLUSTER = 'YOUR_EKS_CLUSTER_NAME'
 
         IMAGE_TAG = "${BUILD_NUMBER}"
     }
 
     stages {
 
-        // =========================================================
-        // 1. CHECKOUT CODE FROM GITHUB
-        // =========================================================
+        // =====================================================
+        // 1. CHECKOUT
+        // =====================================================
+
         stage('Checkout Code') {
             steps {
                 git(
@@ -29,154 +38,312 @@ pipeline {
         }
 
 
-        // =========================================================
+        // =====================================================
         // 2. PREPARE FRONTEND ENVIRONMENT
-        // =========================================================
+        // =====================================================
+
         stage('Prepare Frontend Environment') {
+
             steps {
+
                 withCredentials([
                     file(
                         credentialsId: 'Nexora_frontend',
                         variable: 'FRONTEND_ENV'
                     )
                 ]) {
+
                     sh '''
-                        cp "$FRONTEND_ENV" "DrugGuard/.env"
+                        cp "$FRONTEND_ENV" DrugGuard/.env
+
+                        test -s DrugGuard/.env
+
+                        echo "Frontend environment prepared"
                     '''
                 }
             }
         }
 
 
-        // =========================================================
-        // 3. BUILD FRONTEND DOCKER IMAGE
-        // =========================================================
+        // =====================================================
+        // 3. BUILD FRONTEND IMAGE
+        // =====================================================
+
         stage('Build Frontend Image') {
+
             steps {
-                sh """
-                    docker build \
-                    -t ${FRONTEND_IMAGE}:${IMAGE_TAG} \
-                    -t ${FRONTEND_IMAGE}:latest \
-                    ./DrugGuard
-                """
-            }
-        }
 
-
-        // =========================================================
-        // 4. BUILD BACKEND DOCKER IMAGE
-        // =========================================================
-        stage('Build Backend Image') {
-            steps {
-                sh """
-                    docker build \
-                    -t ${BACKEND_IMAGE}:${IMAGE_TAG} \
-                    -t ${BACKEND_IMAGE}:latest \
-                    ./backend
-                """
-            }
-        }
-
-
-        // =========================================================
-        // 5. LOGIN TO DOCKER HUB
-        // =========================================================
-        stage('Docker Hub Login') {
-            steps {
-                withCredentials([
-                    usernamePassword(
-                        credentialsId: 'Vikas_Docker',
-                        usernameVariable: 'DOCKER_USERNAME',
-                        passwordVariable: 'DOCKER_PASSWORD'
-                    )
-                ]) {
-                    sh '''
-                        echo "$DOCKER_PASSWORD" | docker login \
-                        -u "$DOCKER_USERNAME" \
-                        --password-stdin
-                    '''
-                }
-            }
-        }
-
-
-        // =========================================================
-        // 6. PUSH IMAGES TO DOCKER HUB
-        // =========================================================
-        stage('Push Images to Docker Hub') {
-            steps {
-                sh """
-                    docker push ${FRONTEND_IMAGE}:${IMAGE_TAG}
-                    docker push ${FRONTEND_IMAGE}:latest
-
-                    docker push ${BACKEND_IMAGE}:${IMAGE_TAG}
-                    docker push ${BACKEND_IMAGE}:latest
-                """
-            }
-        }
-
-
-        // =========================================================
-        // 7. STOP OLD CONTAINERS
-        // =========================================================
-        stage('Stop Existing Containers') {
-            steps {
                 sh '''
-                    docker stop Nexora-frontend 2>/dev/null || true
-                    docker stop Nexora-backend 2>/dev/null || true
-
-                    docker rm Nexora-frontend 2>/dev/null || true
-                    docker rm Nexora-backend 2>/dev/null || true
+                    docker build \
+                    -t "$FRONTEND_ECR_REPO:$IMAGE_TAG" \
+                    -t "$FRONTEND_ECR_REPO:latest" \
+                    ./DrugGuard
                 '''
             }
         }
 
 
-        // =========================================================
-        // 8. RUN BACKEND CONTAINER
-        // =========================================================
-        stage('Run Backend Container') {
+        // =====================================================
+        // 4. BUILD BACKEND IMAGE
+        // =====================================================
+
+        stage('Build Backend Image') {
+
             steps {
+
+                sh '''
+                    docker build \
+                    -t "$BACKEND_ECR_REPO:$IMAGE_TAG" \
+                    -t "$BACKEND_ECR_REPO:latest" \
+                    ./backend
+                '''
+            }
+        }
+
+
+        // =====================================================
+        // 5. AWS / ECR LOGIN
+        // =====================================================
+
+        stage('Login to AWS ECR') {
+
+            steps {
+
+                withCredentials([
+                    [
+                        $class: 'AmazonWebServicesCredentialsBinding',
+                        credentialsId: 'AWS Credentials'
+                    ]
+                ]) {
+
+                    sh '''
+                        aws sts get-caller-identity
+
+                        aws ecr get-login-password \
+                        --region "$AWS_REGION" \
+                        | docker login \
+                        --username AWS \
+                        --password-stdin "$ECR_REGISTRY"
+                    '''
+                }
+            }
+        }
+
+
+        // =====================================================
+        // 6. PUSH FRONTEND TO ECR
+        // =====================================================
+
+        stage('Push Frontend to ECR') {
+
+            steps {
+
+                sh '''
+                    docker push "$FRONTEND_ECR_REPO:$IMAGE_TAG"
+                    docker push "$FRONTEND_ECR_REPO:latest"
+                '''
+            }
+        }
+
+
+        // =====================================================
+        // 7. PUSH BACKEND TO ECR
+        // =====================================================
+
+        stage('Push Backend to ECR') {
+
+            steps {
+
+                sh '''
+                    docker push "$BACKEND_ECR_REPO:$IMAGE_TAG"
+                    docker push "$BACKEND_ECR_REPO:latest"
+                '''
+            }
+        }
+
+
+        // =====================================================
+        // 8. UPDATE KUBECTL CONFIGURATION
+        // =====================================================
+
+        stage('Configure EKS') {
+
+            steps {
+
+                withCredentials([
+                    [
+                        $class: 'AmazonWebServicesCredentialsBinding',
+                        credentialsId: 'AWS Credentials'
+                    ]
+                ]) {
+
+                    sh '''
+                        aws sts get-caller-identity
+
+                        aws eks update-kubeconfig \
+                        --region "$AWS_REGION" \
+                        --name "$EKS_CLUSTER"
+
+                        kubectl cluster-info
+                    '''
+                }
+            }
+        }
+
+
+        // =====================================================
+        // 9. CREATE NAMESPACE
+        // =====================================================
+
+        stage('Create Namespace') {
+
+            steps {
+
+                sh '''
+                    kubectl apply -f kubernetes/namespace.yaml
+                '''
+            }
+        }
+
+
+        // =====================================================
+        // 10. CREATE BACKEND SECRET
+        // =====================================================
+
+        stage('Create Backend Secret') {
+
+            steps {
+
                 withCredentials([
                     file(
                         credentialsId: 'Nexora_backend',
                         variable: 'BACKEND_ENV'
                     )
                 ]) {
-                    sh """
-                        docker run -d \
-                        --name Nexora-backend \
-                        --env-file "$BACKEND_ENV" \
-                        -p 5000:5000 \
-                        ${BACKEND_IMAGE}:${IMAGE_TAG}
-                    """
+
+                    sh '''
+                        kubectl create secret generic nexora-backend-secret \
+                        --namespace=nexora \
+                        --from-env-file="$BACKEND_ENV" \
+                        --dry-run=client \
+                        -o yaml \
+                        | kubectl apply -f -
+                    '''
                 }
             }
         }
 
 
-        // =========================================================
-        // 9. RUN FRONTEND CONTAINER
-        // =========================================================
-        stage('Run Frontend Container') {
+        // =====================================================
+        // 11. DEPLOY BACKEND
+        // =====================================================
+
+        stage('Deploy Backend') {
+
             steps {
-                sh """
-                    docker run -d \
-                    --name Nexora-frontend \
-                    -p 8081:80 \
-                    ${FRONTEND_IMAGE}:${IMAGE_TAG}
-                """
+
+                sh '''
+                    sed \
+                    "s|BACKEND_IMAGE_PLACEHOLDER|$BACKEND_ECR_REPO:$IMAGE_TAG|g" \
+                    kubernetes/backend-deployment.yaml \
+                    | kubectl apply -f -
+
+                    kubectl apply \
+                    -f kubernetes/backend-service.yaml
+                '''
             }
         }
 
 
-        // =========================================================
-        // 10. VERIFY DEPLOYMENT
-        // =========================================================
-        stage('Verify Containers') {
+        // =====================================================
+        // 12. DEPLOY FRONTEND
+        // =====================================================
+
+        stage('Deploy Frontend') {
+
             steps {
+
                 sh '''
-                    docker ps
+                    sed \
+                    "s|FRONTEND_IMAGE_PLACEHOLDER|$FRONTEND_ECR_REPO:$IMAGE_TAG|g" \
+                    kubernetes/frontend-deployment.yaml \
+                    | kubectl apply -f -
+
+                    kubectl apply \
+                    -f kubernetes/frontend-service.yaml
+                '''
+            }
+        }
+
+
+        // =====================================================
+        // 13. DEPLOY INGRESS
+        // =====================================================
+
+        stage('Deploy Ingress') {
+
+            steps {
+
+                sh '''
+                    kubectl apply \
+                    -f kubernetes/ingress.yaml
+                '''
+            }
+        }
+
+
+        // =====================================================
+        // 14. WAIT FOR DEPLOYMENT
+        // =====================================================
+
+        stage('Wait for Deployment') {
+
+            steps {
+
+                sh '''
+                    kubectl rollout status \
+                    deployment/nexora-backend \
+                    -n nexora \
+                    --timeout=180s
+
+                    kubectl rollout status \
+                    deployment/nexora-frontend \
+                    -n nexora \
+                    --timeout=180s
+                '''
+            }
+        }
+
+
+        // =====================================================
+        // 15. VERIFY
+        // =====================================================
+
+        stage('Verify EKS Deployment') {
+
+            steps {
+
+                sh '''
+                    echo "================ PODS ================"
+
+                    kubectl get pods \
+                    -n nexora \
+                    -o wide
+
+                    echo "================ SERVICES ================"
+
+                    kubectl get services \
+                    -n nexora
+
+                    echo "================ DEPLOYMENTS ================"
+
+                    kubectl get deployments \
+                    -n nexora
+
+                    echo "================ INGRESS ================"
+
+                    kubectl get ingress \
+                    -n nexora
                 '''
             }
         }
@@ -184,32 +351,42 @@ pipeline {
 
 
     // =============================================================
-    // CLEANUP
+    // POST ACTIONS
     // =============================================================
+
     post {
 
         always {
+
             sh '''
-                if [ -f "DrugGuard/.env" ]; then
-                    rm -f "DrugGuard/.env"
-                fi
+                rm -f DrugGuard/.env 2>/dev/null || true
             '''
         }
 
         success {
-            echo '=============================================='
-            echo 'NEXORA DEPLOYMENT SUCCESSFUL'
-            echo '=============================================='
-            echo 'Frontend: http://localhost:8081'
-            echo 'Backend : http://localhost:5000'
-            echo '=============================================='
+
+            echo '''
+            ==============================================
+            NEXORA EKS DEPLOYMENT SUCCESSFUL
+            ==============================================
+            Images pushed to Amazon ECR
+            Frontend deployed to EKS
+            Backend deployed to EKS
+            Kubernetes Services created
+            Ingress configured
+            ==============================================
+            '''
         }
 
         failure {
-            echo '=============================================='
-            echo 'NEXORA DEPLOYMENT FAILED'
-            echo 'Check the Jenkins Console Output.'
-            echo '=============================================='
+
+            echo '''
+            ==============================================
+            NEXORA EKS DEPLOYMENT FAILED
+            ==============================================
+            Check Jenkins Console Output
+            ==============================================
+            '''
         }
     }
 }

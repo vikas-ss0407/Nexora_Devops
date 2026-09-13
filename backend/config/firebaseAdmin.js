@@ -2,13 +2,21 @@ const admin = require('firebase-admin')
 const fs = require('fs')
 const path = require('path')
 
+function sanitizePrivateKey(key) {
+  if (!key) return null
+  let formatted = String(key).trim()
+
+  // Strip wrapping single or double quotes
 function stripQuotes(str) {
   if (!str) return str
   let cleaned = String(str).trim()
   if (
+    (formatted.startsWith('"') && formatted.endsWith('"')) ||
+    (formatted.startsWith("'") && formatted.endsWith("'"))
     (cleaned.startsWith('"') && cleaned.endsWith('"')) ||
     (cleaned.startsWith("'") && cleaned.endsWith("'"))
   ) {
+    formatted = formatted.slice(1, -1)
     cleaned = cleaned.slice(1, -1).trim()
   }
   return cleaned
@@ -44,6 +52,8 @@ function getServiceAccount() {
         const parsed = JSON.parse(fileContent)
         if (parsed && parsed.project_id && parsed.client_email && parsed.private_key) {
           return {
+            projectId: parsed.project_id,
+            clientEmail: parsed.client_email,
             projectId: stripQuotes(parsed.project_id),
             clientEmail: stripQuotes(parsed.client_email),
             privateKey: sanitizePrivateKey(parsed.private_key)
@@ -56,6 +66,8 @@ function getServiceAccount() {
   }
 
   // 2. Check individual environment variables
+  const projectId = process.env.FIREBASE_PROJECT_ID
+  const clientEmail = process.env.FIREBASE_CLIENT_EMAIL
   const projectId = stripQuotes(process.env.FIREBASE_PROJECT_ID)
   const clientEmail = stripQuotes(process.env.FIREBASE_CLIENT_EMAIL)
   const privateKey = process.env.FIREBASE_PRIVATE_KEY
@@ -73,10 +85,12 @@ function getServiceAccount() {
 
 function getStorageBucketName() {
   if (process.env.FIREBASE_STORAGE_BUCKET) {
+    return process.env.FIREBASE_STORAGE_BUCKET
     return stripQuotes(process.env.FIREBASE_STORAGE_BUCKET)
   }
 
   if (process.env.FIREBASE_PROJECT_ID) {
+    return `${process.env.FIREBASE_PROJECT_ID}.firebasestorage.app`
     return `${stripQuotes(process.env.FIREBASE_PROJECT_ID)}.firebasestorage.app`
   }
 
