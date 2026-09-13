@@ -32,7 +32,12 @@ app.use('/api/auth', authRoutes)
 app.use('/api/inspector', inspectorRoutes)
 app.use('/api/wholesaler', wholesalerRoutes)
 app.use('/api/retailer', retailerRoutes)
-
+app.get('/', (req, res) => {
+  res.status(200).json({
+    status: 'OK',
+    message: 'Nexora backend is running'
+  })
+})
 app.listen(PORT, async () => {
   console.log(`DrugGuard backend running on port ${PORT}`)
   
