@@ -2,7 +2,6 @@ pipeline {
     agent any
 
     options {
-        skipDefaultCheckout(true)
         disableConcurrentBuilds()
         timeout(time: 30, unit: 'MINUTES')
     }
